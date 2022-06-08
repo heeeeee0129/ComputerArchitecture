@@ -188,10 +188,69 @@ int load_word(unsigned int addr)
  *
  */
 int store_word(unsigned int addr, unsigned int data)
-{
-	/* TODO: Implement your store_word function */
+{  int move = 2+log2_discrete(nr_words_per_block);
+   int start_block = addr & (~(1<<move-2)-1);
+   int set_number = (addr >> move)%nr_sets;
+   int tag_number = (addr >> move)>>log2_discrete(nr_sets);
+   int cache_addr = nr_ways*set_number;
 
-	return CACHE_MISS;
+   for(int i=0; i<nr_ways;i++){
+      if(cache[cache_addr+i].valid == 1){
+         if(cache[cache_addr+i].tag == tag_number){
+            printf("hit_in_store_word!\n");
+            //int temp =
+            for(int j=0; j<4; j++){
+               cache[cache_addr+i].data[((addr/4)%nr_words_per_block)*4+j] = (data<<j*8)>>24;
+            }
+            cache[cache_addr+i].dirty = 1;
+            cache[cache_addr+i].timestamp = cycles;
+            return CACHE_HIT;
+            }
+      }
+      else if(cache[cache_addr+i].valid == 0){
+         printf("only store!\n");
+         cache[cache_addr+i].tag = tag_number;
+         cache[cache_addr+i].dirty = 1;
+         cache[cache_addr+i].valid = 1;
+         cache[cache_addr+i].timestamp = cycles;
+         for(int j = 0; j<4*nr_words_per_block; j++){
+            cache[cache_addr+i].data[j] = memory[((addr/(nr_words_per_block*4))*(nr_words_per_block*4))+j];
+         }
+         for(int j=0; j<4; j++){
+            cache[cache_addr+i].data[((addr/4)%nr_words_per_block)*4+j] = (data<<j*8)>>24;
+         }
+
+         return CACHE_MISS;
+      }
+   }
+         int small_timestamp = -1;
+               int small_waynum = 0;
+               for(int i=0; i<nr_ways; i++){
+                  if(small_timestamp>cache[cache_addr+i].timestamp) {
+                     small_timestamp = cache[cache_addr+i].timestamp;
+                     small_waynum = cache_addr + i;
+                     }
+               }
+         int memory_addr = ((cache[small_waynum].tag<<log2_discrete(nr_sets))+set_number)*nr_words_per_block*4;
+         for(int i=0; i<nr_words_per_block*4; i++){
+            if(cache[small_waynum].data[i] != memory[memory_addr+i])memory[memory_addr+i] = cache[small_waynum].data[i];
+         }
+         printf("last way\n");
+         cache[small_waynum].tag = tag_number;
+         cache[small_waynum].dirty = 1;
+         cache[small_waynum].valid = 1;
+         cache[small_waynum].timestamp = cycles;
+         for(int j = 0; j<4*nr_words_per_block; j++){
+            cache[small_waynum].data[j] = memory[((addr/(nr_words_per_block*4))*(nr_words_per_block*4))+j];
+         }
+         for(int j=0; j<4; j++){
+            cache[small_waynum].data[((addr/4)%nr_words_per_block)*4+j] = (data<<j*8)>>24;
+         }
+
+         return CACHE_MISS;
+
+
+   
 }
 
 
